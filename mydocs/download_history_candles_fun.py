@@ -3,16 +3,16 @@
 import os
 import sys
 import asyncio
-sys.path.append("E:\MyProjects\myprojects\bitfinex")
+sys.path.append("E:\\MyProjects\\bitfinex")
 from bfxapi import Client
 bfx = Client(
   logLevel='DEBUG',
 )
 
-async def log_historical_candles(symbol_bitfinex):
+async def log_historical_candles(symbol_bitfinex, then):
   candles = await bfx.rest.get_public_candles(symbol_bitfinex, 0, then)
   print ("Candles:")
   [ print (c) for c in candles ]
-async def run(symbol_bitfinex):
-  await log_historical_candles(symbol_bitfinex)
+async def run(symbol_bitfinex, then):
+  await log_historical_candles(symbol_bitfinex, then)
     
