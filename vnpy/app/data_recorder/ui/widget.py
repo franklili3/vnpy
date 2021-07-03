@@ -9,7 +9,8 @@ from vnpy.trader.event import EVENT_CONTRACT
 from ..engine import (
     APP_NAME,
     EVENT_RECORDER_LOG,
-    EVENT_RECORDER_UPDATE
+    EVENT_RECORDER_UPDATE,
+    EVENT_RECORDER_EXCEPTION
 )
 
 
@@ -19,6 +20,7 @@ class RecorderManager(QtWidgets.QWidget):
     signal_log = QtCore.pyqtSignal(Event)
     signal_update = QtCore.pyqtSignal(Event)
     signal_contract = QtCore.pyqtSignal(Event)
+    signal_exception = QtCore.pyqtSignal(Event)
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine):
         super().__init__()
@@ -38,8 +40,13 @@ class RecorderManager(QtWidgets.QWidget):
 
         # Create widgets
         self.symbol_line = QtWidgets.QLineEdit()
-        self.symbol_line.setFixedHeight(
-            self.symbol_line.sizeHint().height() * 2)
+
+        self.interval_spin = QtWidgets.QSpinBox()
+        self.interval_spin.setMinimum(1)
+        self.interval_spin.setMaximum(60)
+        self.interval_spin.setValue(self.recorder_engine.timer_interval)
+        self.interval_spin.setSuffix("秒")
+        self.interval_spin.valueChanged.connect(self.set_interval)
 
         contracts = self.main_engine.get_all_contracts()
         self.vt_symbols = [contract.vt_symbol for contract in contracts]
@@ -80,9 +87,12 @@ class RecorderManager(QtWidgets.QWidget):
         grid.addWidget(add_tick_button, 1, 1)
         grid.addWidget(remove_tick_button, 1, 2)
 
+        form = QtWidgets.QFormLayout()
+        form.addRow("本地代码", self.symbol_line)
+        form.addRow("写入间隔", self.interval_spin)
+
         hbox = QtWidgets.QHBoxLayout()
-        hbox.addWidget(QtWidgets.QLabel("本地代码"))
-        hbox.addWidget(self.symbol_line)
+        hbox.addLayout(form)
         hbox.addWidget(QtWidgets.QLabel("     "))
         hbox.addLayout(grid)
         hbox.addStretch()
@@ -104,12 +114,14 @@ class RecorderManager(QtWidgets.QWidget):
         self.signal_log.connect(self.process_log_event)
         self.signal_contract.connect(self.process_contract_event)
         self.signal_update.connect(self.process_update_event)
+        self.signal_exception.connect(self.process_exception_event)
 
         self.event_engine.register(EVENT_CONTRACT, self.signal_contract.emit)
         self.event_engine.register(
             EVENT_RECORDER_LOG, self.signal_log.emit)
         self.event_engine.register(
             EVENT_RECORDER_UPDATE, self.signal_update.emit)
+        self.event_engine.register(EVENT_RECORDER_EXCEPTION, self.signal_exception.emit)
 
     def process_log_event(self, event: Event):
         """"""
@@ -137,6 +149,11 @@ class RecorderManager(QtWidgets.QWidget):
         model = self.symbol_completer.model()
         model.setStringList(self.vt_symbols)
 
+    def process_exception_event(self, event: Event):
+        """"""
+        exc_info = event.data
+        raise exc_info[1].with_traceback(exc_info[2])
+
     def add_bar_recording(self):
         """"""
         vt_symbol = self.symbol_line.text()
@@ -156,3 +173,7 @@ class RecorderManager(QtWidgets.QWidget):
         """"""
         vt_symbol = self.symbol_line.text()
         self.recorder_engine.remove_tick_recording(vt_symbol)
+
+    def set_interval(self, interval):
+        """"""
+        self.recorder_engine.interval = interval

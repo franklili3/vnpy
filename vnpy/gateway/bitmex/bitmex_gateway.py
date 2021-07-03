@@ -1,6 +1,4 @@
-# encoding: UTF-8
-"""
-"""
+""""""
 
 import hashlib
 import hmac
@@ -10,11 +8,14 @@ from copy import copy
 from datetime import datetime, timedelta
 from threading import Lock
 from urllib.parse import urlencode
+import pytz
 
 from requests import ConnectionError
 
+from vnpy.event import Event
 from vnpy.api.rest import Request, RestClient
 from vnpy.api.websocket import WebsocketClient
+from vnpy.trader.event import EVENT_TIMER
 from vnpy.trader.constant import (
     Direction,
     Exchange,
@@ -75,6 +76,8 @@ TIMEDELTA_MAP = {
     Interval.DAILY: timedelta(days=1),
 }
 
+UTC_TZ = pytz.utc
+
 
 class BitmexGateway(BaseGateway):
     """
@@ -98,6 +101,8 @@ class BitmexGateway(BaseGateway):
 
         self.rest_api = BitmexRestApi(self)
         self.ws_api = BitmexWebsocketApi(self)
+
+        event_engine.register(EVENT_TIMER, self.process_timer_event)
 
     def connect(self, setting: dict):
         """"""
@@ -148,6 +153,10 @@ class BitmexGateway(BaseGateway):
         self.rest_api.stop()
         self.ws_api.stop()
 
+    def process_timer_event(self, event: Event):
+        """"""
+        self.rest_api.reset_rate_limit()
+
 
 class BitmexRestApi(RestClient):
     """
@@ -168,6 +177,11 @@ class BitmexRestApi(RestClient):
         self.order_count_lock = Lock()
 
         self.connect_time = 0
+
+        # Use 60 by default, and will update after first request
+        self.rate_limit_limit = 60
+        self.rate_limit_remaining = 60
+        self.rate_limit_sleep = 0
 
     def sign(self, request):
         """
@@ -220,7 +234,7 @@ class BitmexRestApi(RestClient):
         self.secret = secret.encode()
 
         self.connect_time = (
-            int(datetime.now().strftime("%y%m%d%H%M%S")) * self.order_count
+            int(datetime.now(UTC_TZ).strftime("%y%m%d%H%M%S")) * self.order_count
         )
 
         if server == "REAL":
@@ -240,6 +254,9 @@ class BitmexRestApi(RestClient):
 
     def send_order(self, req: OrderRequest):
         """"""
+        if not self.check_rate_limit():
+            return ""
+
         orderid = str(self.connect_time + self._new_order_id())
 
         data = {
@@ -284,6 +301,9 @@ class BitmexRestApi(RestClient):
 
     def cancel_order(self, req: CancelRequest):
         """"""
+        if not self.check_rate_limit():
+            return
+
         orderid = req.orderid
 
         if orderid.isdigit():
@@ -301,6 +321,9 @@ class BitmexRestApi(RestClient):
 
     def query_history(self, req: HistoryRequest):
         """"""
+        if not self.check_rate_limit():
+            return
+
         history = []
         count = 750
         start_time = req.start.isoformat()
@@ -337,12 +360,10 @@ class BitmexRestApi(RestClient):
                     break
 
                 for d in data:
-                    dt = datetime.strptime(
-                        d["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ")
                     bar = BarData(
                         symbol=req.symbol,
                         exchange=req.exchange,
-                        datetime=dt,
+                        datetime=generate_datetime(d["timestamp"]),
                         interval=req.interval,
                         volume=d["volume"],
                         open_price=d["open"],
@@ -371,11 +392,19 @@ class BitmexRestApi(RestClient):
         """
         Callback when sending order failed on server.
         """
+        self.update_rate_limit(request)
+
         order = request.extra
         order.status = Status.REJECTED
         self.gateway.on_order(order)
 
-        msg = f"委托失败，状态码：{status_code}，信息：{request.response.text}"
+        if request.response.text:
+            data = request.response.json()
+            error = data["error"]
+            msg = f"委托失败，状态码：{status_code}，类型：{error['name']}, 信息：{error['message']}"
+        else:
+            msg = f"委托失败，状态码：{status_code}"
+
         self.gateway.write_log(msg)
 
     def on_send_order_error(
@@ -394,7 +423,7 @@ class BitmexRestApi(RestClient):
 
     def on_send_order(self, data, request):
         """Websocket will push a new order status"""
-        pass
+        self.update_rate_limit(request)
 
     def on_cancel_order_error(
         self, exception_type: type, exception_value: Exception, tb, request: Request
@@ -408,13 +437,17 @@ class BitmexRestApi(RestClient):
 
     def on_cancel_order(self, data, request):
         """Websocket will push a new order status"""
-        pass
+        self.update_rate_limit(request)
 
     def on_failed(self, status_code: int, request: Request):
         """
         Callback to handle request failed.
         """
-        msg = f"请求失败，状态码：{status_code}，信息：{request.response.text}"
+        self.update_rate_limit(request)
+
+        data = request.response.json()
+        error = data["error"]
+        msg = f"请求失败，状态码：{status_code}，类型：{error['name']}, 信息：{error['message']}"
         self.gateway.write_log(msg)
 
     def on_error(
@@ -429,6 +462,50 @@ class BitmexRestApi(RestClient):
         sys.stderr.write(
             self.exception_detail(exception_type, exception_value, tb, request)
         )
+
+    def update_rate_limit(self, request: Request):
+        """
+        Update current request limit remaining status.
+        """
+        if request.response is None:
+            return
+        headers = request.response.headers
+
+        self.rate_limit_remaining = int(headers["x-ratelimit-remaining"])
+
+        self.rate_limit_sleep = int(headers.get("Retry-After", 0))
+        if self.rate_limit_sleep:
+            self.rate_limit_sleep += 1      # 1 extra second sleep
+
+    def reset_rate_limit(self):
+        """
+        Reset request limit remaining every 1 second.
+        """
+        self.rate_limit_remaining += 1
+        self.rate_limit_remaining = min(
+            self.rate_limit_remaining, self.rate_limit_limit)
+
+        # Countdown of retry sleep seconds
+        if self.rate_limit_sleep:
+            self.rate_limit_sleep -= 1
+
+    def check_rate_limit(self):
+        """
+        Check if rate limit is reached before sending out requests.
+        """
+        # Already received 429 from server
+        if self.rate_limit_sleep:
+            msg = f"请求过于频繁，已被BitMEX限制，请等待{self.rate_limit_sleep}秒后再试"
+            self.gateway.write_log(msg)
+            return False
+        # Just local request limit is reached
+        elif not self.rate_limit_remaining:
+            msg = "请求频率太高，有触发BitMEX流控的风险，请稍候再试"
+            self.gateway.write_log(msg)
+            return False
+        else:
+            self.rate_limit_remaining -= 1
+            return True
 
 
 class BitmexWebsocketApi(WebsocketClient):
@@ -457,6 +534,7 @@ class BitmexWebsocketApi(WebsocketClient):
         self.ticks = {}
         self.accounts = {}
         self.orders = {}
+        self.positions = {}
         self.trades = set()
 
     def connect(
@@ -481,7 +559,7 @@ class BitmexWebsocketApi(WebsocketClient):
             symbol=req.symbol,
             exchange=req.exchange,
             name=req.symbol,
-            datetime=datetime.now(),
+            datetime=datetime.now(UTC_TZ),
             gateway_name=self.gateway_name,
         )
         self.ticks[req.symbol] = tick
@@ -571,8 +649,7 @@ class BitmexWebsocketApi(WebsocketClient):
             return
 
         tick.last_price = d["price"]
-        tick.datetime = datetime.strptime(
-            d["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        tick.datetime = generate_datetime(d["timestamp"])
         self.gateway.on_tick(copy(tick))
 
     def on_depth(self, d):
@@ -592,8 +669,6 @@ class BitmexWebsocketApi(WebsocketClient):
             tick.__setattr__("ask_price_%s" % (n + 1), price)
             tick.__setattr__("ask_volume_%s" % (n + 1), volume)
 
-        tick.datetime = datetime.strptime(
-            d["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ")
         self.gateway.on_tick(copy(tick))
 
     def on_trade(self, d):
@@ -620,7 +695,7 @@ class BitmexWebsocketApi(WebsocketClient):
             direction=DIRECTION_BITMEX2VT[d["side"]],
             price=d["lastPx"],
             volume=d["lastQty"],
-            time=d["timestamp"][11:19],
+            datetime=generate_datetime(d["timestamp"]),
             gateway_name=self.gateway_name,
         )
 
@@ -628,28 +703,33 @@ class BitmexWebsocketApi(WebsocketClient):
 
     def on_order(self, d):
         """"""
+        # Filter order data which cannot be processed properly
         if "ordStatus" not in d:
             return
 
+        # Update local order data
         sysid = d["orderID"]
         order = self.orders.get(sysid, None)
         if not order:
+            # Filter data with no trading side info
+            side = d.get("side", "")
+            if not side:
+                return
+
             if d["clOrdID"]:
                 orderid = d["clOrdID"]
             else:
                 orderid = sysid
-
-            # time = d["timestamp"][11:19]
 
             order = OrderData(
                 symbol=d["symbol"],
                 exchange=Exchange.BITMEX,
                 type=ORDERTYPE_BITMEX2VT[d["ordType"]],
                 orderid=orderid,
-                direction=DIRECTION_BITMEX2VT[d["side"]],
+                direction=DIRECTION_BITMEX2VT[side],
                 price=d["price"],
                 volume=d["orderQty"],
-                time=d["timestamp"][11:19],
+                datetime=generate_datetime(d["timestamp"]),
                 gateway_name=self.gateway_name,
             )
             self.orders[sysid] = order
@@ -661,15 +741,27 @@ class BitmexWebsocketApi(WebsocketClient):
 
     def on_position(self, d):
         """"""
-        position = PositionData(
-            symbol=d["symbol"],
-            exchange=Exchange.BITMEX,
-            direction=Direction.NET,
-            volume=d.get("currentQty", 0),
-            gateway_name=self.gateway_name,
-        )
+        symbol = d["symbol"]
 
-        self.gateway.on_position(position)
+        position = self.positions.get(symbol, None)
+        if not position:
+            position = PositionData(
+                symbol=d["symbol"],
+                exchange=Exchange.BITMEX,
+                direction=Direction.NET,
+                gateway_name=self.gateway_name,
+            )
+            self.positions[symbol] = position
+
+        volume = d.get("currentQty", None)
+        if volume is not None:
+            position.volume = volume
+
+        price = d.get("avgEntryPrice", None)
+        if price is not None:
+            position.price = price
+
+        self.gateway.on_position(copy(position))
 
     def on_account(self, d):
         """"""
@@ -708,3 +800,10 @@ class BitmexWebsocketApi(WebsocketClient):
         )
 
         self.gateway.on_contract(contract)
+
+
+def generate_datetime(timestamp: str) -> datetime:
+    """"""
+    dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
+    dt = UTC_TZ.localize(dt)
+    return dt
