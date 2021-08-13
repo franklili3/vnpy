@@ -16,12 +16,14 @@ class PairTradingStrategy(StrategyTemplate):
 
     volitility_window = 2
     stocks_number = 1
+    rebalance_days = 1
     
     #leg1_symbol = ""
 
     parameters = [
         "volitility_window",
-        "stocks_number"
+        "stocks_number",
+        "rebalance_days"
     ]
     #variables = [
         #"leg1_symbol",
@@ -44,8 +46,8 @@ class PairTradingStrategy(StrategyTemplate):
         self.volitility_data: Dict[str, int] = {}
         self.sorted_volitility_data: list[np.array] = [] 
         self.selected_symbols: list[str] = []
-            
-        #self.spread_count: int = 0
+        self.bar_count: int = 0
+        
         for vt_symbol in self.vt_symbols:
             self.amplitude_data[vt_symbol] = np.zeros(volitility_window)
             self.volitility_data[vt_symbol] = np.zeros(1)
@@ -102,7 +104,7 @@ class PairTradingStrategy(StrategyTemplate):
     def on_bars(self, bars: Dict[str, BarData]):
         """"""
         self.cancel_all()
-
+        self.bar_count += 1
         
         # Return if one leg data is missing
         #if self.leg1_symbol not in bars or self.leg2_symbol not in bars:
@@ -114,8 +116,9 @@ class PairTradingStrategy(StrategyTemplate):
         for vt_symbol in self.vt_symbols:
             self.amplitude_data[vt_symbol].append((bars[vt_symbol].high_price -\
                 bars[vt_symbol].low_price) / bars[vt_symbol].open_price)
-        # Filter time only run every 24 houres
-        if bar_0.datetime.houre % 24:
+        
+        # Filter time only run on 
+        if self.bar_count % rebalance_days != 0:
             return
         
         # Update to data array
@@ -134,8 +137,12 @@ class PairTradingStrategy(StrategyTemplate):
         # select stock name
         self.sorted_volitility_data = sorted(self.volitility_data.items(), key=lambda\
                          item: item[1], reverse=True)
-        
-        
+        i = 0
+        for item in self.sorted_volitility_data.items():
+            if i < stocks_number:
+                self.selected_symbols.append(item[0])
+        print('self.selected_symbols:', self.selected_symbols)
+                
         '''
         self.spread_data[:-1] = self.spread_data[1:]
         self.spread_data[-1] = self.current_spread
@@ -153,46 +160,41 @@ class PairTradingStrategy(StrategyTemplate):
         self.boll_down = self.boll_mid - self.boll_dev * std
         '''
         # Calculate new target position
-        leg1_pos = self.get_pos(self.leg1_symbol)
+        # 等权重
+        weight = 1 / len(self.selected_symbols)
+        # 目前持仓列表    
+        stock_hold_now = [equity.symbol for equity in self.get_pos()]
+        print('stock_hold_now:', stock_hold_now)
 
-        if not leg1_pos:
-            if self.current_spread >= self.boll_up:
-                self.targets[self.leg1_symbol] = -1
-                self.targets[self.leg2_symbol] = 1
-            elif self.current_spread <= self.boll_down:
-                self.targets[self.leg1_symbol] = 1
-                self.targets[self.leg2_symbol] = -1
-        elif leg1_pos > 0:
-            if self.current_spread >= self.boll_mid:
-                self.targets[self.leg1_symbol] = 0
-                self.targets[self.leg2_symbol] = 0
-        else:
-            if self.current_spread <= self.boll_mid:
-                self.targets[self.leg1_symbol] = 0
-                self.targets[self.leg2_symbol] = 0
+        # 需要买入的股票列表
+        stock_to_buy = [i for i not in stock_hold_now  if i in self.selected_symbols]
+        print('stock_to_buy:', stock_to_buy)
 
-        # Execute orders
-        for vt_symbol in self.vt_symbols:
-            target_pos = self.targets[vt_symbol]
-            current_pos = self.get_pos(vt_symbol)
+        # 继续持有股票列表
+        no_need_to_sell = [i for i in stock_hold_now  if i in self.selected_symbols]
+        print('no_need_to_sell:', no_need_to_sell)
 
-            pos_diff = target_pos - current_pos
-            volume = abs(pos_diff)
-            bar = bars[vt_symbol]
+        # 卖出股票列表 
+        stock_to_sell = [i for i in stock_hold_now if i not in no_need_to_sell]
+        print('stock_to_sell:', stock_to_sell)
 
-            if pos_diff > 0:
-                price = bar.close_price + self.price_add
+        # 执行卖出
+        for stock in stock_to_sell:
+            current_pos = self.get_pos(stock)
+            volume = current_pos
+            bar = bars[stock]
+            price = bar.close_price + self.price_add
+            self.sell(stock, price, volume)
 
-                if current_pos < 0:
-                    self.cover(vt_symbol, price, volume)
-                else:
-                    self.buy(vt_symbol, price, volume)
-            elif pos_diff < 0:
-                price = bar.close_price - self.price_add
+        # 如果当天没有买入就返回
+        if len(stock_to_buy) == 0:
+            return
 
-                if current_pos > 0:
-                    self.sell(vt_symbol, price, volume)
-                else:
-                    self.short(vt_symbol, price, volume)
-
+        # 执行买入
+        for s_t_b in stock_to_buy:
+            bar = bars[stock]
+            price = bar.close_price + self.price_add
+            volume = 1
+            self.buy(s_t_b, volume)
+            
         self.put_event()
