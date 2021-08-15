@@ -9,7 +9,7 @@ from vnpy.trader.object import BarData
 from vnpy.trader.constant import Interval
 
 
-class PairTradingStrategy(StrategyTemplate):
+class AmplitudeVolitilityStrategy(StrategyTemplate):
     """"""
 
     author = "Frank li"
@@ -146,14 +146,11 @@ class PairTradingStrategy(StrategyTemplate):
         '''
         self.spread_data[:-1] = self.spread_data[1:]
         self.spread_data[-1] = self.current_spread
-
         self.spread_count += 1
         if self.spread_count <= self.boll_window:
             return
-
         # Calculate boll value
         buf: np.array = self.spread_data[-self.boll_window:]
-
         std = buf.std()
         self.boll_mid = buf.mean()
         self.boll_up = self.boll_mid + self.boll_dev * std
