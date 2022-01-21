@@ -7,15 +7,15 @@ OptionMaster是用于**期权交易**的功能模块，用户可以通过OptionM
 
 ## 加载启动
 
-### VN Station加载
+### Veighna Station加载
 
-启动登录VN Station后，点击【VN Trader Pro】按钮，在配置对话框中的【上层应用】栏勾选【OptionMaster】。
+启动登录Veighna Station后，点击【Veighna Trader】按钮，在配置对话框中的【上层应用】栏勾选【OptionMaster】。
 
 ### 脚本加载
 
 在启动脚本中添加如下代码：
 
-```
+```python 3
 # 写在顶部
 from vnpy.app.option_master import OptionMasterApp
 
@@ -26,7 +26,7 @@ main_engine.add_app(OptionMasterApp)
 
 ## 启动模块
 
-启动VN Trader后，在菜单栏中点击【功能】-> 【期权交易】，或者点击左侧按钮栏的图标：
+启动Veighna Trader后，在菜单栏中点击【功能】-> 【期权交易】，或者点击左侧按钮栏的图标：
 
 ![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/option_master/1.png)
 
@@ -52,7 +52,6 @@ main_engine.add_app(OptionMasterApp)
   * 定价模型中用到的无风险折现利率；
 * 合约模式
   * 正向：包括ETF期权、期货期权、股指期权等大多数产品；
-  * 反向：只有数字货币市场的反向期权产品；
 * Greeks小数位
   * 显示希腊值时保留的小数位数；
 * 期权链对应的定价标的
@@ -100,7 +99,7 @@ main_engine.add_app(OptionMasterApp)
 
 ![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/option_master/5.png)
 
-整体使用方法和VN Trader主界面的交易组件相似，输入合约代码、买卖方向、开平方向、交易价格和数量后，点击【委托】按钮即可发出限价委托，点击【全撤】按钮即可一键全撤当前的全部活动委托。
+整体使用方法和Veighna Trader主界面的交易组件相似，输入合约代码、买卖方向、开平方向、交易价格和数量后，点击【委托】按钮即可发出限价委托，点击【全撤】按钮即可一键全撤当前的全部活动委托。
 
 双击T型报价中某一期权的单元格，可以快速填充本窗口的【代码】编辑框。
 
@@ -193,10 +192,10 @@ main_engine.add_app(OptionMasterApp)
 * 时间衰减：交易日的衰减天数；
 * 价格变动：
   * 分析中价格的涨跌变动范围；
-  * 假设单前价格为100，变动为10%，则范围为90~110
+  * 假设单前价格为100，变动为10%，则范围为90~110；
 * 波动率变动：
-  * 分析中波动率的涨跌变动范围
-  * 假设当前波动率为20%，变动为10%，则范围为10%~30%
+  * 分析中波动率的涨跌变动范围；
+  * 假设当前波动率为20%，变动为10%，则范围为10%~30%。
 
 点击执行分析按钮后，压力测试引擎会根据当前的交易组合持仓，以及每个情景下的价格和隐含波动率情况，来计算对应的目标数据，并将最终的结果绘制为3D曲面。
 
@@ -281,5 +280,4 @@ main_engine.add_app(OptionMasterApp)
 ![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/option_master/14.png)
 
 当需要对算法配置进行批量修改时，可以通过电子眼窗口的右上角的全局修改功能进行操作，更加方便快捷。
-
 

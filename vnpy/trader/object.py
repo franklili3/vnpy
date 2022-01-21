@@ -1,5 +1,5 @@
 """
-Basic data structure used for general trading function in VN Trader.
+Basic data structure used for general trading function in the trading platform.
 """
 
 from dataclasses import dataclass
@@ -36,6 +36,7 @@ class TickData(BaseData):
 
     name: str = ""
     volume: float = 0
+    turnover: float = 0
     open_interest: float = 0
     last_price: float = 0
     last_volume: float = 0
@@ -90,6 +91,7 @@ class BarData(BaseData):
 
     interval: Interval = None
     volume: float = 0
+    turnover: float = 0
     open_interest: float = 0
     open_price: float = 0
     high_price: float = 0
@@ -131,10 +133,7 @@ class OrderData(BaseData):
         """
         Check if the order is active.
         """
-        if self.status in ACTIVE_STATUSES:
-            return True
-        else:
-            return False
+        return self.status in ACTIVE_STATUSES
 
     def create_cancel_request(self) -> "CancelRequest":
         """
@@ -246,6 +245,7 @@ class ContractData(BaseData):
     option_strike: float = 0
     option_underlying: str = ""     # vt_symbol of underlying contract
     option_type: OptionType = None
+    option_listed: datetime = None
     option_expiry: datetime = None
     option_portfolio: str = ""
     option_index: str = ""          # for identifying options with same strike price
@@ -280,6 +280,12 @@ class QuoteData(BaseData):
         """"""
         self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
         self.vt_quoteid = f"{self.gateway_name}.{self.quoteid}"
+
+    def is_active(self) -> bool:
+        """
+        Check if the quote is active.
+        """
+        return self.status in ACTIVE_STATUSES
 
     def create_cancel_request(self) -> "CancelRequest":
         """
@@ -402,7 +408,7 @@ class QuoteRequest:
         quote = QuoteData(
             symbol=self.symbol,
             exchange=self.exchange,
-            quoteid=self.quoteid,
+            quoteid=quoteid,
             bid_price=self.bid_price,
             bid_volume=self.bid_volume,
             ask_price=self.ask_price,

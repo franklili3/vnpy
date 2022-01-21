@@ -6,17 +6,17 @@ RiskManager模块是用于**事前风险检测与交易控制**的功能模块�
 
 ## 加载启动
 
-### VN Station加载
+### Veighna Station加载
 
-启动登录VN Station后，点击【VN Trader Pro】按钮，在配置对话框中的【上层应用】栏勾选【RiskManager】。
+启动登录Veighna Station后，点击【Veighna Trader】按钮，在配置对话框中的【上层应用】栏勾选【RiskManager】。
 
 ### 脚本加载
 
 在启动脚本中添加如下代码：
 
-```
+```python 3
 # 写在顶部
-from vnpy.app.risk_manager import RiskManagerApp
+from vnpy_riskmanager import RiskManagerApp
 
 # 写在创建main_engine对象后
 main_engine.add_app(RiskManagerApp)
