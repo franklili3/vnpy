@@ -1,4 +1,4 @@
-vn.py项目文档
+VeighNa项目文档
 ~~~~~~~~~
 
 .. toctree::
@@ -7,7 +7,8 @@ vn.py项目文档
    introduction.md
    windows_install.md
    ubuntu_install.md
-   quickstart.md
+   veighna_station.md
+   veighna_trader.md
    gateway.md
    database.md
    datafeed.md

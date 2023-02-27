@@ -2,16 +2,18 @@
 Implements main window of the trading platform.
 """
 
+from types import ModuleType
 import webbrowser
 from functools import partial
 from importlib import import_module
-from typing import Callable, Dict, Tuple
-
-from PyQt5 import QtCore, QtGui, QtWidgets
+from typing import Callable, Dict, List, Tuple
 
 import vnpy
 from vnpy.event import EventEngine
+
+from .qt import QtCore, QtGui, QtWidgets
 from .widget import (
+    BaseMonitor,
     TickMonitor,
     OrderMonitor,
     TradeMonitor,
@@ -25,8 +27,7 @@ from .widget import (
     AboutDialog,
     GlobalDialog
 )
-from .editor import CodeEditor
-from ..engine import MainEngine
+from ..engine import MainEngine, BaseApp
 from ..utility import get_icon_path, TRADER_DIR
 
 
@@ -35,16 +36,17 @@ class MainWindow(QtWidgets.QMainWindow):
     Main window of the trading platform.
     """
 
-    def __init__(self, main_engine: MainEngine, event_engine: EventEngine):
+    def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
         """"""
         super().__init__()
 
         self.main_engine: MainEngine = main_engine
         self.event_engine: EventEngine = event_engine
 
-        self.window_title: str = f"Veighna Trader 社区版 - {vnpy.__version__}   [{TRADER_DIR}]"
+        self.window_title: str = f"VeighNa Trader 社区版 - {vnpy.__version__}   [{TRADER_DIR}]"
 
         self.widgets: Dict[str, QtWidgets.QWidget] = {}
+        self.monitors: Dict[str, BaseMonitor] = {}
 
         self.init_ui()
 
@@ -92,100 +94,97 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def init_menu(self) -> None:
         """"""
-        bar = self.menuBar()
+        bar: QtWidgets.QMenuBar = self.menuBar()
+        bar.setNativeMenuBar(False)     # for mac and linux
 
         # System menu
-        sys_menu = bar.addMenu("系统")
+        sys_menu: QtWidgets.QMenu = bar.addMenu("系统")
 
-        gateway_names = self.main_engine.get_all_gateway_names()
+        gateway_names: list = self.main_engine.get_all_gateway_names()
         for name in gateway_names:
-            func = partial(self.connect, name)
-            self.add_menu_action(sys_menu, f"连接{name}", "connect.ico", func)
+            func: Callable = partial(self.connect, name)
+            self.add_action(
+                sys_menu,
+                f"连接{name}",
+                get_icon_path(__file__, "connect.ico"),
+                func
+            )
 
         sys_menu.addSeparator()
 
-        self.add_menu_action(sys_menu, "退出", "exit.ico", self.close)
+        self.add_action(
+            sys_menu,
+            "退出",
+            get_icon_path(__file__, "exit.ico"),
+            self.close
+        )
 
         # App menu
-        app_menu = bar.addMenu("功能")
+        app_menu: QtWidgets.QMenu = bar.addMenu("功能")
 
-        all_apps = self.main_engine.get_all_apps()
+        all_apps: List[BaseApp] = self.main_engine.get_all_apps()
         for app in all_apps:
-            ui_module = import_module(app.app_module + ".ui")
-            widget_class = getattr(ui_module, app.widget_name)
+            ui_module: ModuleType = import_module(app.app_module + ".ui")
+            widget_class: QtWidgets.QWidget = getattr(ui_module, app.widget_name)
 
-            func = partial(self.open_widget, widget_class, app.app_name)
-            icon_path = str(app.app_path.joinpath("ui", app.icon_name))
-            self.add_menu_action(
-                app_menu, app.display_name, icon_path, func
-            )
-            self.add_toolbar_action(
-                app.display_name, icon_path, func
-            )
+            func: Callable = partial(self.open_widget, widget_class, app.app_name)
+
+            self.add_action(app_menu, app.display_name, app.icon_name, func, True)
 
         # Global setting editor
-        action = QtWidgets.QAction("配置", self)
+        action: QtGui.QAction = QtWidgets.QAction("配置", self)
         action.triggered.connect(self.edit_global_setting)
         bar.addAction(action)
 
         # Help menu
-        help_menu = bar.addMenu("帮助")
+        help_menu: QtWidgets.QMenu = bar.addMenu("帮助")
 
-        self.add_menu_action(
+        self.add_action(
             help_menu,
             "查询合约",
-            "contract.ico",
+            get_icon_path(__file__, "contract.ico"),
             partial(self.open_widget, ContractManager, "contract"),
-        )
-        self.add_toolbar_action(
-            "查询合约",
-            "contract.ico",
-            partial(self.open_widget, ContractManager, "contract")
+            True
         )
 
-        self.add_menu_action(
+        self.add_action(
             help_menu,
-            "代码编辑",
-            "editor.ico",
-            partial(self.open_widget, CodeEditor, "editor")
-        )
-        self.add_toolbar_action(
-            "代码编辑",
-            "editor.ico",
-            partial(self.open_widget, CodeEditor, "editor")
+            "还原窗口",
+            get_icon_path(__file__, "restore.ico"),
+            self.restore_window_setting
         )
 
-        self.add_menu_action(
-            help_menu, "还原窗口", "restore.ico", self.restore_window_setting
+        self.add_action(
+            help_menu,
+            "测试邮件",
+            get_icon_path(__file__, "email.ico"),
+            self.send_test_email
         )
 
-        self.add_menu_action(
-            help_menu, "测试邮件", "email.ico", self.send_test_email
+        self.add_action(
+            help_menu,
+            "社区论坛",
+            get_icon_path(__file__, "forum.ico"),
+            self.open_forum,
+            True
         )
 
-        self.add_menu_action(
-            help_menu, "社区论坛", "forum.ico", self.open_forum
-        )
-        self.add_toolbar_action(
-            "社区论坛", "forum.ico", self.open_forum
-        )
-
-        self.add_menu_action(
+        self.add_action(
             help_menu,
             "关于",
-            "about.ico",
+            get_icon_path(__file__, "about.ico"),
             partial(self.open_widget, AboutDialog, "about"),
         )
 
     def init_toolbar(self) -> None:
         """"""
-        self.toolbar = QtWidgets.QToolBar(self)
+        self.toolbar: QtWidgets.QToolBar = QtWidgets.QToolBar(self)
         self.toolbar.setObjectName("工具栏")
         self.toolbar.setFloatable(False)
         self.toolbar.setMovable(False)
 
         # Set button size
-        w = 40
+        w: int = 40
         size = QtCore.QSize(w, w)
         self.toolbar.setIconSize(size)
 
@@ -194,36 +193,25 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.addToolBar(QtCore.Qt.LeftToolBarArea, self.toolbar)
 
-    def add_menu_action(
+    def add_action(
         self,
         menu: QtWidgets.QMenu,
         action_name: str,
         icon_name: str,
         func: Callable,
+        toolbar: bool = False
     ) -> None:
         """"""
-        icon = QtGui.QIcon(get_icon_path(__file__, icon_name))
+        icon: QtGui.QIcon = QtGui.QIcon(icon_name)
 
-        action = QtWidgets.QAction(action_name, self)
+        action: QtGui.QAction = QtWidgets.QAction(action_name, self)
         action.triggered.connect(func)
         action.setIcon(icon)
 
         menu.addAction(action)
 
-    def add_toolbar_action(
-        self,
-        action_name: str,
-        icon_name: str,
-        func: Callable,
-    ) -> None:
-        """"""
-        icon = QtGui.QIcon(get_icon_path(__file__, icon_name))
-
-        action = QtWidgets.QAction(action_name, self)
-        action.triggered.connect(func)
-        action.setIcon(icon)
-
-        self.toolbar.addAction(action)
+        if toolbar:
+            self.toolbar.addAction(action)
 
     def create_dock(
         self,
@@ -234,9 +222,11 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Initialize a dock widget.
         """
-        widget = widget_class(self.main_engine, self.event_engine)
+        widget: QtWidgets.QWidget = widget_class(self.main_engine, self.event_engine)
+        if isinstance(widget, BaseMonitor):
+            self.monitors[name] = widget
 
-        dock = QtWidgets.QDockWidget(name)
+        dock: QtWidgets.QDockWidget = QtWidgets.QDockWidget(name)
         dock.setWidget(widget)
         dock.setObjectName(name)
         dock.setFeatures(dock.DockWidgetFloatable | dock.DockWidgetMovable)
@@ -247,7 +237,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Open connect dialog for gateway connection.
         """
-        dialog = ConnectDialog(self.main_engine, gateway_name)
+        dialog: ConnectDialog = ConnectDialog(self.main_engine, gateway_name)
         dialog.exec_()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
@@ -265,6 +255,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if reply == QtWidgets.QMessageBox.Yes:
             for widget in self.widgets.values():
                 widget.close()
+
+            for monitor in self.monitors.values():
+                monitor.save_setting()
+
             self.save_window_setting("custom")
 
             self.main_engine.close()
@@ -277,7 +271,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Open contract manager.
         """
-        widget = self.widgets.get(name, None)
+        widget: QtWidgets.QWidget = self.widgets.get(name, None)
         if not widget:
             widget = widget_class(self.main_engine, self.event_engine)
             self.widgets[name] = widget
@@ -287,11 +281,11 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             widget.show()
 
-    def save_window_setting(self, name: str):
+    def save_window_setting(self, name: str) -> None:
         """
         Save current window size and state by trader path and setting name.
         """
-        settings = QtCore.QSettings(self.window_title, name)
+        settings: QtCore.QSettings = QtCore.QSettings(self.window_title, name)
         settings.setValue("state", self.saveState())
         settings.setValue("geometry", self.saveGeometry())
 
@@ -299,7 +293,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Load previous window size and state by trader path and setting name.
         """
-        settings = QtCore.QSettings(self.window_title, name)
+        settings: QtCore.QSettings = QtCore.QSettings(self.window_title, name)
         state = settings.value("state")
         geometry = settings.value("geometry")
 
@@ -318,7 +312,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Sending a test email.
         """
-        self.main_engine.send_email("Veighna Trader", "testing")
+        self.main_engine.send_email("VeighNa Trader", "testing")
 
     def open_forum(self) -> None:
         """
@@ -328,5 +322,5 @@ class MainWindow(QtWidgets.QMainWindow):
     def edit_global_setting(self) -> None:
         """
         """
-        dialog = GlobalDialog()
+        dialog: GlobalDialog = GlobalDialog()
         dialog.exec_()

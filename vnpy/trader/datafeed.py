@@ -1,5 +1,6 @@
 from abc import ABC
-from typing import Optional, List
+from types import ModuleType
+from typing import Optional, List, Callable
 from importlib import import_module
 
 from .object import HistoryRequest, TickData, BarData
@@ -11,19 +12,19 @@ class BaseDatafeed(ABC):
     Abstract datafeed class for connecting to different datafeed.
     """
 
-    def init(self) -> bool:
+    def init(self, output: Callable = print) -> bool:
         """
         Initialize datafeed service connection.
         """
         pass
 
-    def query_bar_history(self, req: HistoryRequest) -> Optional[List[BarData]]:
+    def query_bar_history(self, req: HistoryRequest, output: Callable = print) -> Optional[List[BarData]]:
         """
         Query history bar data.
         """
         pass
 
-    def query_tick_history(self, req: HistoryRequest) -> Optional[List[TickData]]:
+    def query_tick_history(self, req: HistoryRequest, output: Callable = print) -> Optional[List[TickData]]:
         """
         Query history tick data.
         """
@@ -46,10 +47,10 @@ def get_datafeed() -> BaseDatafeed:
 
     # Try to import datafeed module
     try:
-        module = import_module(module_name)
+        module: ModuleType = import_module(module_name)
     except ModuleNotFoundError:
         print(f"找不到数据服务驱动{module_name}，使用默认的RQData数据服务")
-        module = import_module("vnpy_rqdata")
+        module: ModuleType = import_module("vnpy_rqdata")
 
     # Create datafeed object from module
     datafeed = module.Datafeed()

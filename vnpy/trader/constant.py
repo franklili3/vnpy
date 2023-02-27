@@ -84,6 +84,7 @@ class Exchange(Enum):
     CZCE = "CZCE"           # Zhengzhou Commodity Exchange
     DCE = "DCE"             # Dalian Commodity Exchange
     INE = "INE"             # Shanghai International Energy Exchange
+    GFEX = "GFEX"           # Guangzhou Futures Exchange
     SSE = "SSE"             # Shanghai Stock Exchange
     SZSE = "SZSE"           # Shenzhen Stock Exchange
     BSE = "BSE"             # Beijing Stock Exchange
@@ -101,6 +102,8 @@ class Exchange(Enum):
     ISLAND = "ISLAND"       # Nasdaq Island ECN
     BATS = "BATS"           # Bats Global Markets
     IEX = "IEX"             # The Investors Exchange
+    AMEX = "AMEX"           # American Stock Exchange
+    TSE = "TSE"             # Toronto Stock Exchange
     NYMEX = "NYMEX"         # New York Mercantile Exchange
     COMEX = "COMEX"         # COMEX of CME
     GLOBEX = "GLOBEX"       # Globex of CME
@@ -109,7 +112,6 @@ class Exchange(Enum):
     ICE = "ICE"             # Intercontinental Exchange
     SEHK = "SEHK"           # Stock Exchange of Hong Kong
     HKFE = "HKFE"           # Hong Kong Futures Exchange
-    HKSE = "HKSE"           # Hong Kong Stock Exchange
     SGX = "SGX"             # Singapore Global Exchange
     CBOT = "CBT"            # Chicago Board of Trade
     CBOE = "CBOE"           # Chicago Board Options Exchange
@@ -125,19 +127,6 @@ class Exchange(Enum):
     OTC = "OTC"             # OTC Product (Forex/CFD/Pink Sheet Equity)
     IBKRATS = "IBKRATS"     # Paper Trading Exchange of IB
 
-    BITMEX = "BITMEX"
-    OKEX = "OKEX"
-    HUOBI = "HUOBI"
-    BITFINEX = "BITFINEX"
-    BINANCE = "BINANCE"
-    BYBIT = "BYBIT"
-    COINBASE = "COINBASE"
-    DERIBIT = "DERIBIT"
-    GATEIO = "GATEIO"
-    BITSTAMP = "BITSTAMP"
-    DYDX = "DYDX"
-    FTX = "FTX"
-
     # Special Function
     LOCAL = "LOCAL"         # For local generated data
 
@@ -149,6 +138,7 @@ class Currency(Enum):
     USD = "USD"
     HKD = "HKD"
     CNY = "CNY"
+    CAD = "CAD"
 
 
 class Interval(Enum):

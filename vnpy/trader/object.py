@@ -2,7 +2,7 @@
 Basic data structure used for general trading function in the trading platform.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from logging import INFO
 
@@ -19,6 +19,8 @@ class BaseData:
     """
 
     gateway_name: str
+
+    extra: dict = field(default=None, init=False)
 
 
 @dataclass
@@ -74,9 +76,9 @@ class TickData(BaseData):
 
     localtime: datetime = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -98,9 +100,9 @@ class BarData(BaseData):
     low_price: float = 0
     close_price: float = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -124,10 +126,10 @@ class OrderData(BaseData):
     datetime: datetime = None
     reference: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
-        self.vt_orderid = f"{self.gateway_name}.{self.orderid}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.vt_orderid: str = f"{self.gateway_name}.{self.orderid}"
 
     def is_active(self) -> bool:
         """
@@ -139,7 +141,7 @@ class OrderData(BaseData):
         """
         Create cancel request object from order.
         """
-        req = CancelRequest(
+        req: CancelRequest = CancelRequest(
             orderid=self.orderid, symbol=self.symbol, exchange=self.exchange
         )
         return req
@@ -163,17 +165,17 @@ class TradeData(BaseData):
     volume: float = 0
     datetime: datetime = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
-        self.vt_orderid = f"{self.gateway_name}.{self.orderid}"
-        self.vt_tradeid = f"{self.gateway_name}.{self.tradeid}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.vt_orderid: str = f"{self.gateway_name}.{self.orderid}"
+        self.vt_tradeid: str = f"{self.gateway_name}.{self.tradeid}"
 
 
 @dataclass
 class PositionData(BaseData):
     """
-    Positon data is used for tracking each individual position holding.
+    Position data is used for tracking each individual position holding.
     """
 
     symbol: str
@@ -186,10 +188,10 @@ class PositionData(BaseData):
     pnl: float = 0
     yd_volume: float = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
-        self.vt_positionid = f"{self.vt_symbol}.{self.direction.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.vt_positionid: str = f"{self.gateway_name}.{self.vt_symbol}.{self.direction.value}"
 
 
 @dataclass
@@ -204,10 +206,10 @@ class AccountData(BaseData):
     balance: float = 0
     frozen: float = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.available = self.balance - self.frozen
-        self.vt_accountid = f"{self.gateway_name}.{self.accountid}"
+        self.available: float = self.balance - self.frozen
+        self.vt_accountid: str = f"{self.gateway_name}.{self.accountid}"
 
 
 @dataclass
@@ -219,9 +221,9 @@ class LogData(BaseData):
     msg: str
     level: int = INFO
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.time = datetime.now()
+        self.time: datetime = datetime.now()
 
 
 @dataclass
@@ -250,9 +252,9 @@ class ContractData(BaseData):
     option_portfolio: str = ""
     option_index: str = ""          # for identifying options with same strike price
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -276,10 +278,10 @@ class QuoteData(BaseData):
     datetime: datetime = None
     reference: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
-        self.vt_quoteid = f"{self.gateway_name}.{self.quoteid}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.vt_quoteid: str = f"{self.gateway_name}.{self.quoteid}"
 
     def is_active(self) -> bool:
         """
@@ -291,7 +293,7 @@ class QuoteData(BaseData):
         """
         Create cancel request object from quote.
         """
-        req = CancelRequest(
+        req: CancelRequest = CancelRequest(
             orderid=self.quoteid, symbol=self.symbol, exchange=self.exchange
         )
         return req
@@ -306,9 +308,9 @@ class SubscribeRequest:
     symbol: str
     exchange: Exchange
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -326,15 +328,15 @@ class OrderRequest:
     offset: Offset = Offset.NONE
     reference: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
     def create_order_data(self, orderid: str, gateway_name: str) -> OrderData:
         """
         Create order data from request.
         """
-        order = OrderData(
+        order: OrderData = OrderData(
             symbol=self.symbol,
             exchange=self.exchange,
             orderid=orderid,
@@ -359,9 +361,9 @@ class CancelRequest:
     symbol: str
     exchange: Exchange
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -376,9 +378,9 @@ class HistoryRequest:
     end: datetime = None
     interval: Interval = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
 
 @dataclass
@@ -397,15 +399,15 @@ class QuoteRequest:
     ask_offset: Offset = Offset.NONE
     reference: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """"""
-        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
     def create_quote_data(self, quoteid: str, gateway_name: str) -> QuoteData:
         """
         Create quote data from request.
         """
-        quote = QuoteData(
+        quote: QuoteData = QuoteData(
             symbol=self.symbol,
             exchange=self.exchange,
             quoteid=quoteid,

@@ -1,22 +1,182 @@
+# 3.6.0版本
+
+## 新增
+
+1. 新增vnpy_ctp的Mac系统支持（M1/M2）
+
+## 调整
+
+1. BaseDatafeed的相关功能函数增加output入参用于输出日志
+2. 修改相关数据服务模块适配output参数：vnpy_rqdata/vnpy_ifind/vnpy_wind/vnpy_tushare
+3. 修改相关策略应用模块适配output参数：vnpy_ctastrategy/vnpy_ctabacktester/vnpy_portfoliostrategy/vnpy_spreadtrading/vnpy_datamanager
+3. OffsetConverter增加对于SHFE/INE合约的锁仓模式支持
+4. 在OmsEngine中添加全局的OffsetConverter功能，不再需要各AppEngine自行维护
+5. 添加CTA策略模块在执行参数优化时的最大进程数量限制参数：vnpy_ctastrategy/vnpy_ctabacktester
+6. 增加穷举优化算法运行过程中基于tqdm的进度条输出
+7. 增加遗传优化算法运行过程中的迭代次数进度输出
+8. 增加vnpy_optionmaster模块的期权产品对应标的合约的匹配函数，不再限制产品范围
+9.  升级vnpy_tts的dll链接库，解决openctp升级导致的资金不显示的问题
+10. 修改vnpy_ctastrategy使用vnpy.trader.database中统一定义的时区来加载数据
+11. 增加vnpy_ctastrategy策略模板的合约乘数查询函数get_size
+12. 增加vnpy_spreadtrading回测中统计绩效时对于爆仓情况的检查
+13. 增加vnpy_scripttrader基于vt_symbol和direction查询持仓数据的函数
+14. 修改vt_positionid的字符串内容，增加gateway_name前缀标识
+
+## 修复
+
+1. 修复异常捕捉钩子threading_excepthook的参数错误问题
+2. 修复vnpy_ib获取历史数据时的异常失败问题
+3. 修复vnpy_rest/vnpy_websocket中aiohttp的代理参数proxy传空时必须为None的问题
+4. 修复vnpy_optionmaster模块的Greeks监控表行数设置不足的问题
+5. 修复vnpy_rqdata查询股票期权数据报错的问题
+6. 修复vnpy_rqdata中RqdataGateway获取期货指数和连续合约信息时错误的问题
+7. 修复vnpy_portfoliostrategy中，从缓存文件恢复数据，导致defaultdict变成dict的问题
+
+
+# 3.5.0版本
+
+## 新增
+
+1. 新增基于米筐RQData的跨市场行情数据接口RqdataGateway
+2. 新增东方财富证券EMT柜台交易接口vnpy_emt
+
+## 调整
+
+1. 调整vnpy_algotrading模块设计（模板、引擎），只支持单合约算法执行交易
+2. 优化vnpy_algotrading的算法状态控制，增加状态枚举值，算法支持暂停和恢复运行
+3. 升级vnpy_hft接口支持HFT国君统一交易网关的2.0版本API
+4. 优化vnpy_portfoliostrategy的策略模板，支持持仓目标调仓交易模式
+
+## 修复
+
+1. 修复后台线程异常捕捉钩子函数，对于Python 3.7的语法兼容性问题
+2. 修复vnpy_mysql加载历史数据时存在时段重复的问题
+3. 修复vnpy_ib由于TWS客户端升级导致的委托失败问题
+4. 修复vnpy_rest/vnpy_websocket对Python 3.10后asyncio的支持
+5. 修复vnpy_sopt由于流控导致的委托失败时，返回【提交中】状态委托的问题
+
+
+# 3.4.0版本
+
+## 新增
+
+1. 新增杰宜斯资管系统交易接口vnpy_jees
+
+## 调整
+
+1. 开启vnpy.rpc的pyzmq连接keepalive机制，避免在复杂网络环境下闲置连接的断开
+2. 移除vnpy_rpcservice中服务端的EVENT_TIMER定时事件推送
+3. 调整vnpy_postgresql采用批量方式写入数据，提高效率
+4. 添加VeighNa Trader中的子线程异常捕捉（需要Python>=3.8）
+5. 调整vnpy_ib接口查询历史K线数据时，对外汇和贵金属均采用中间价（而非成交价）
+6. 增加vnpy_ctastrategy对于回测过程中资金爆仓（小于等于0）情况的检查
+7. 优化vnpy_webtrader模块的加密鉴权，支持web进程关闭重启
+
+## 修复
+
+1. 修复vnpy.rpc模块对于23.0以上版本pyzmq的NOBLOCK兼容性问题
+2. 修复vnpy_taos由于TDengine版本升级，出现d的一系列兼容问题
+3. 修复vnpy_datamanager刷新数据汇总信息显示时，老数据点移除失败的问题
+
+
+
+# 3.3.0版本
+
+## 新增
+1. 新增数据库组件vnpy.trader.database中的TickOverview对象
+2. 新增掘金仿真环境交易接口vnpy_gm
+3. BaseData基础数据类型增加extra字段（字典类型），用于传送任意相关数据
+
+## 调整
+1. 使用Python内置的zoneinfo库替换三方的pytz库
+2. 调整相关交易接口、数据服务接口、数据库适配器、应用模块，使用新的ZoneInfo对象来标识时区信息
+3. 数据库适配器接口vnpy.trader.database写入数据时，新增流式写入参数stream，提高行情录制性能
+
+
+# 3.2.0版本
+
+## 新增
+1. 添加广州期货交易所枚举值字段GFEX
+2. 新增CTP期权（ETF）穿透式测试接口vnpy_sopttest
+3. 新增Currency.CAD（加元）枚举值
+4. 新增Exchange.TSE（多伦多交易所）和Exchange.AMEX（美洲交易所）枚举值
+5. 新增vnpy_taos，涛思数据TDengine时序数据库适配器
+5. 新增vnpy_timescaledb，TimescaleDB时序数据库适配器
+
+## 调整
+1. 更新vnpy_ctp/vnpy_ctptest支持广州期货交易所
+2. 更新vnpy_tora的现货API接口到最新版本：API_Python3.7_交易_v4.0.3_20220222
+3. 更新vnpy_tora的期权API接口到最新版本：API_Python3.7_v1.3.2_20211201
+4. 更新vnpy_esunny/vnpy_tap添加关闭接口时对于API退出函数的调用
+5. 移除vnpy_ctastrategy/vnpy_ctabacktester/vnpy_optionmaster的反向合约支持
+6. 增加vnpy_ib对于沪股通、深股通、多伦多交易所、美洲交易所的支持
+7. 增加vnpy_ib对于指数行情数据的支持
+8. 添加vnpy_ctastrategy策略交易管理界面的策略实例查找功能
+
+## 修复
+
+1. 修复vnpy_mongodb中K线数据量统计的问题（使用新的count_documents函数）
+2. 修复由于PySide6对象销毁先于__del__调用，导致的BaseMonitor衍生组件无法自动保存界面状态的问题
+
+
+
+# 3.1.0版本
+
+## 新增
+1. 新增恒生云UF2.0证券仿真环境交易接口vnpy_uf
+2. 新增火象投教仿真环境交易接口vnpy_hx
+
+## 调整
+1. 升级tzlocal库的版本到4.2，消除get_localzone()函数的warning
+2. 完善代码中函数和变量类型提示
+3. 使用QtCore.Signal代替老的QtCore.pyqtSignal
+4. 优化vnpy_rohon接口的委托成交相关细节功能
+5. 更新vnpy_xtp到2.2.32.2.0版本XTP API，支持上交所新债系统
+6. 优化vnpy_mongodb的数据写入速度，基于pymongo 4.0版本的批量写入功能
+7. 增加vnpy_ctp对于委托函数返回值为非0（请求发送失败）状态的处理
+8. 对vnpy_ctastrategy和vnpy_ctabacktester的策略模板下拉框中内容，改为基于首字母排序
+
+## 修复
+1. 修复vnpy_optionmaster模块希腊值监控组件的数据刷新问题
+2. 修复vnpy_mongodb由于时间戳的时区信息确实，导致的数据加载范围问题
+3. 修复vnpy_tts的sdist源代码打包缺失lib文件的问题
+4. 修复vnpy_rqdata由于查询返回数据为NaN导致的解析问题
+
+
+# 3.0.0版本
+
+## 调整
+1. 移除api、gateway、app子模块的目录
+2. 移除requirements.txt对于插件的默认依赖
+3. 简化重构rpc子模块，定位于可靠环境下跨进程通讯（本机、局域网）
+4. 移除rpc子模块对于鉴权的支持
+5. 调整rpc子模块中的心跳机制的实现方式
+6. 移除基于QScintilla开发的代码编辑器，改用VSCode打开代码
+7. 优化MainWindow主窗口中，对于QAction按钮图标的加载逻辑
+8. MainEngine添加交易接口时，支持自定义接口名称
+
+## 修复
+1. 使用非原生窗口菜单栏，修复Linux/Mac下【配置】按钮不显示的问题
+
+
 # 2.9.0版本
 
-# 新增
+## 新增
 1. 新增顶点HTS柜台交易接口vnpy_hts
 
-# 调整
+## 调整
 1. 移除恒生期权hsoption接口
 2. vnpy_webtrader增加对于自定义监听地址和端口的支持
 3. vnpy_mongodb锁定pymongo的依赖版本为3.12.3
 4. vnpy_udata安装脚本中添加hs_udata库的依赖
 5. vnpy_uft升级使用3.7.2.4版本的恒生API接口
 
-# 剥离
-1. 将南华期货NHTD交易接口剥离到vnpy_nhtd项目中
+## 剥离
 2. 将国泰君安证券统一接入网关交易接口剥离到vnpy_hft项目中
 3. 将顶点飞创交易接口剥离到vnpy_sec项目中
 4. 将RPC服务和接口剥离到vnpy_rpcservice项目中
 
-# 修复
+## 修复
 1. 修复vnpy_tora撤单时，由于撤单编号和委托编号冲突导致的撤单失败问题
 2. 修复vnpy_tora股票委托状态中【未成交】状态的错误映射问题
 3. 修复vnpy_ctabacktester中，回测开始日期编辑框的数据缓存问题
@@ -27,11 +187,11 @@
 
 # 2.8.0版本
 
-# 新增
+## 新增
 1. 新增东证OST柜台交易接口vnpy_ost
 2. 增加投资组合策略模块的策略参数优化功能
 
-# 修复
+## 修复
 1. 修复部分C++接口模块剥离后，遗留的安装脚本编译代码导致的报错问题
 2. 修复vnpy_xtp订阅深交所行情后，可能出现的闪退问题
 3. 修复vnpy_tushare部分数据字段为None时，导致的数据错误
@@ -46,7 +206,7 @@
 12. 修复vnpy_rohon的期权合约字段赋值错误的问题
 13. 修复vnpy_leveldb的Linux安装依赖库问题
 
-# 调整
+## 调整
 1. 移除老版本基于requests库的RestClient客户端
 2. 移除老版本基于websocket-client库的WebsocketClient客户端
 3. vnpy_tts增加对上交所和深交所股票模拟交易的支持
@@ -56,7 +216,7 @@
 7. 增加vnpy_arctic对于用户名和密码的鉴权功能
 8. 增加vnpy_mini对于股指期权的支持
 
-# 剥离
+## 剥离
 1. 将华鑫奇点交易接口剥离到vnpy_tora项目中，并升级到4.0版本
 2. 将飞马交易接口剥离到vnpy_femas项目中
 3. 将金仕达黄金接口剥离到vnpy_ksgold项目中
@@ -66,14 +226,14 @@
 
 # 2.7.0版本
 
-# 新增
+## 新增
 1. 新增天软数据服务项目vnpy_tinysoft
 2. 新增同花顺iFinD数据服务项目vnpy_ifind
 3. 新增dYdx交易接口vnpy_dydx
 4. 新增万得Wind数据服务项目vnpy_wind
 5. 新增PortfolioStrategy专用的PortfolioBarGenerator
 
-# 调整
+## 调整
 1. 移除KasiaGateway
 4. 移除MarketRadarApp
 5. 算法交易模块中移除套利和网格两个非执行类算法
@@ -82,11 +242,11 @@
 13. vnpy_dolphindb优化数据的加载解析速度
 14. vnpy_influxdb采用pandas解析CSV数据，提高整体速度
 
-# 修复
+## 修复
 1. 修复vnpy_ctp的CtpGateway，在夜盘换日时上期所行情时间戳的日期字段误差问题
 2. 修复vnpy_arctic的数据重复写入时出现的错误覆盖问题
 
-# 剥离
+## 剥离
 1. 将InteractiveBrokers交易接口剥离到vnpy_ib项目中
 2. 将飞鼠交易接口剥离到vnpy_sgit项目中
 3. 将易盛外盘交易接口剥离到vnpy_tap项目中
@@ -149,7 +309,7 @@
 2. 在MainWindow的AboutDialog中，基于importlib_metadata模块来获取版本信息
 3. 隐藏所有对话框右上角的【？】按钮
 4. 将易盛外盘TapGateway的合约信息，从行情接口获取改为交易接口获取（避免外盘合约size为0的问题）
-5. 改进Veighna Trader的异常捕捉对话框弹出方式，避免多次重复报错情况下的程序卡死崩溃
+5. 改进VeighNa Trader的异常捕捉对话框弹出方式，避免多次重复报错情况下的程序卡死崩溃
 
 ## 修复
 1. 修复Linux下安装时，对于已经剥离的XTP API的自动编译操作

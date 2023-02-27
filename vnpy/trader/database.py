@@ -1,23 +1,24 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
+from types import ModuleType
 from typing import List
-from pytz import timezone
 from dataclasses import dataclass
 from importlib import import_module
 
 from .constant import Interval, Exchange
 from .object import BarData, TickData
 from .setting import SETTINGS
+from .utility import ZoneInfo
 
 
-DB_TZ = timezone(SETTINGS["database.timezone"])
+DB_TZ = ZoneInfo(SETTINGS["database.timezone"])
 
 
 def convert_tz(dt: datetime) -> datetime:
     """
     Convert timezone of datetime object to DB_TZ.
     """
-    dt = dt.astimezone(DB_TZ)
+    dt: datetime = dt.astimezone(DB_TZ)
     return dt.replace(tzinfo=None)
 
 
@@ -35,20 +36,33 @@ class BarOverview:
     end: datetime = None
 
 
+@dataclass
+class TickOverview:
+    """
+    Overview of tick data stored in database.
+    """
+
+    symbol: str = ""
+    exchange: Exchange = None
+    count: int = 0
+    start: datetime = None
+    end: datetime = None
+
+
 class BaseDatabase(ABC):
     """
     Abstract database class for connecting to different database.
     """
 
     @abstractmethod
-    def save_bar_data(self, bars: List[BarData]) -> bool:
+    def save_bar_data(self, bars: List[BarData], stream: bool = False) -> bool:
         """
         Save bar data into database.
         """
         pass
 
     @abstractmethod
-    def save_tick_data(self, ticks: List[TickData]) -> bool:
+    def save_tick_data(self, ticks: List[TickData], stream: bool = False) -> bool:
         """
         Save tick data into database.
         """
@@ -107,7 +121,14 @@ class BaseDatabase(ABC):
     @abstractmethod
     def get_bar_overview(self) -> List[BarOverview]:
         """
-        Return data avaible in database.
+        Return bar data avaible in database.
+        """
+        pass
+
+    @abstractmethod
+    def get_tick_overview(self) -> List[TickOverview]:
+        """
+        Return tick data avaible in database.
         """
         pass
 
@@ -128,10 +149,10 @@ def get_database() -> BaseDatabase:
 
     # Try to import database module
     try:
-        module = import_module(module_name)
+        module: ModuleType = import_module(module_name)
     except ModuleNotFoundError:
         print(f"找不到数据库驱动{module_name}，使用默认的SQLite数据库")
-        module = import_module("vnpy_sqlite")
+        module: ModuleType = import_module("vnpy_sqlite")
 
     # Create database object from module
     database = module.Database()
